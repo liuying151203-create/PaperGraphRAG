@@ -1,0 +1,1 @@
+"""Academic ontology tests."""

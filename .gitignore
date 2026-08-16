@@ -56,6 +56,9 @@ neo4jWorkDir/
 inputs/
 output/
 rag_storage/
+# Local WSL smoke-test data (custom paths used by the development server)
+/inputs_wsl/
+/rag_storage_deepseek_bge/
 data/
 
 # User cumstomized prompt directory

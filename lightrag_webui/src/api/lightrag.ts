@@ -730,11 +730,17 @@ export const queryScholarGraph = async (
   query: string,
   strategy: ScholarRetrievalStrategy,
   collectionKey?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  enableRerank: boolean = true
 ): Promise<ScholarQueryResponse> => {
   const response = await axiosInstance.post(
     '/scholar/query',
-    { query, strategy, collection_key: collectionKey || undefined },
+    {
+      query,
+      strategy,
+      collection_key: collectionKey || undefined,
+      enable_rerank: enableRerank
+    },
     { signal }
   )
   return response.data

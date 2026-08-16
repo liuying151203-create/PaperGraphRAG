@@ -1,14 +1,18 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { BookOpen, Search } from 'lucide-react'
 import Button from '@/components/ui/Button'
+import Checkbox from '@/components/ui/Checkbox'
 import Textarea from '@/components/ui/Textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select'
 import { ChatMessage, MessageWithError } from '@/components/retrieval/ChatMessage'
 import EvidenceTrace from '@/components/retrieval/EvidenceTrace'
-import { errorMessage } from '@/lib/utils'
+import { cn, errorMessage } from '@/lib/utils'
 import { getZoteroLibrary, queryScholarGraph } from '@/api/lightrag'
 import type { ScholarQueryResponse, ScholarRetrievalStrategy } from '@/api/lightrag'
+import { useBackendState } from '@/stores/state'
+import { getRerankRuntimeLabel, getRerankRuntimeState } from '@/lib/rerankStatus'
+import { useTranslation } from 'react-i18next'
 
 const descriptions: Record<ScholarRetrievalStrategy, string> = {
   VECTOR: 'Semantic chunk retrieval (LightRAG naive mode)',
@@ -17,6 +21,7 @@ const descriptions: Record<ScholarRetrievalStrategy, string> = {
 }
 
 export default function AskPapersView() {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [strategy, setStrategy] = useState<ScholarRetrievalStrategy>('HYBRID')
   const [collectionKey, setCollectionKey] = useState('ALL')
@@ -24,6 +29,11 @@ export default function AskPapersView() {
   const [result, setResult] = useState<ScholarQueryResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [enableRerank, setEnableRerank] = useState(true)
+  const backendStatus = useBackendState.use.status()
+  const rerankRuntimeState = getRerankRuntimeState(backendStatus)
+  const rerankRuntimeLabel = getRerankRuntimeLabel(backendStatus)
+  const effectiveEnableRerank = rerankRuntimeState === 'unavailable' ? false : enableRerank
 
   useEffect(() => {
     void getZoteroLibrary()
@@ -44,7 +54,9 @@ export default function AskPapersView() {
         await queryScholarGraph(
           query.trim(),
           strategy,
-          collectionKey === 'ALL' ? undefined : collectionKey
+          collectionKey === 'ALL' ? undefined : collectionKey,
+          undefined,
+          effectiveEnableRerank
         )
       )
     } catch (cause) {
@@ -112,11 +124,37 @@ export default function AskPapersView() {
                   </SelectContent>
                 </Select>
                 <span className="grow text-xs text-muted-foreground">{descriptions[strategy]}</span>
+                <label className="flex items-center gap-2 text-xs">
+                  <Checkbox
+                    checked={effectiveEnableRerank}
+                    disabled={rerankRuntimeState === 'unavailable'}
+                    onCheckedChange={(checked) => setEnableRerank(checked === true)}
+                  />
+                  {t('retrievePanel.querySettings.enableRerank')}
+                </label>
                 <Button type="submit" disabled={loading || query.trim().length < 3}>
                   <Search className="size-4" />
                   {loading ? 'Searching…' : 'Ask'}
                 </Button>
               </div>
+              <p
+                className={cn(
+                  'text-xs',
+                  rerankRuntimeState === 'available'
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : rerankRuntimeState === 'unavailable'
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-muted-foreground'
+                )}
+              >
+                {rerankRuntimeState === 'available'
+                  ? t('retrievePanel.querySettings.rerankConfigured', {
+                    model: rerankRuntimeLabel || t('retrievePanel.querySettings.rerankConfiguredFallback')
+                  })
+                  : rerankRuntimeState === 'unavailable'
+                    ? t('retrievePanel.querySettings.rerankNotConfigured')
+                    : t('retrievePanel.querySettings.rerankStatusUnknown')}
+              </p>
             </form>
           </CardContent>
         </Card>

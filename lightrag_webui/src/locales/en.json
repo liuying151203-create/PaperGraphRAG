@@ -480,7 +480,11 @@
       "userPromptTooltip": "Provide additional response requirements to the LLM (unrelated to query content, only for output processing).",
       "userPromptPlaceholder": "Enter custom prompt (optional)",
       "enableRerank": "Enable Rerank",
-      "enableRerankTooltip": "Enable reranking for retrieved text chunks. If True but no rerank model is configured, a warning will be issued. Default is True."
+      "enableRerankTooltip": "Enable reranking for retrieved text chunks when the server has a rerank model configured.",
+      "rerankConfigured": "Configured: {{model}}",
+      "rerankConfiguredFallback": "reranker available",
+      "rerankNotConfigured": "Not configured on the server; original chunk order will be used.",
+      "rerankStatusUnknown": "Reranker configuration status is not available yet."
     }
   },
   "apiSite": {

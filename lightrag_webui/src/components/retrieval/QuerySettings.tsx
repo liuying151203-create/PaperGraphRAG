@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { QueryMode, QueryRequest } from '@/api/lightrag'
 // Removed unused import for Text component
 import Checkbox from '@/components/ui/Checkbox'
@@ -18,6 +18,8 @@ import { useSettingsStore } from '@/stores/settings'
 import { useTranslation } from 'react-i18next'
 import { RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useBackendState } from '@/stores/state'
+import { getRerankRuntimeLabel, getRerankRuntimeState } from '@/lib/rerankStatus'
 
 const ResetButton = ({ onClick, title }: { onClick: () => void; title: string }) => (
   <TooltipProvider>
@@ -43,6 +45,9 @@ export default function QuerySettings() {
   const { t } = useTranslation()
   const querySettings = useSettingsStore((state) => state.querySettings)
   const userPromptHistory = useSettingsStore((state) => state.userPromptHistory)
+  const backendStatus = useBackendState.use.status()
+  const rerankRuntimeState = getRerankRuntimeState(backendStatus)
+  const rerankRuntimeLabel = getRerankRuntimeLabel(backendStatus)
 
   const handleChange = useCallback((key: keyof QueryRequest, value: any) => {
     useSettingsStore.getState().updateQuerySettings({ [key]: value })
@@ -76,6 +81,12 @@ export default function QuerySettings() {
   // Warn only for the narrower-coverage modes (hybrid/naive/local/global).
   const showQualityWarning =
     querySettings.mode !== 'mix' && querySettings.mode !== 'bypass'
+
+  useEffect(() => {
+    if (rerankRuntimeState === 'unavailable' && querySettings.enable_rerank) {
+      useSettingsStore.getState().updateQuerySettings({ enable_rerank: false })
+    }
+  }, [querySettings.enable_rerank, rerankRuntimeState])
 
   return (
     <Card className="flex shrink-0 flex-col w-[280px]">
@@ -385,9 +396,29 @@ export default function QuerySettings() {
                   className="mr-10 cursor-pointer"
                   id="enable_rerank"
                   checked={querySettings.enable_rerank}
+                  disabled={rerankRuntimeState === 'unavailable'}
                   onCheckedChange={(checked) => handleChange('enable_rerank', checked)}
                 />
               </div>
+              <p
+                id="rerank_runtime_status"
+                className={cn(
+                  'ml-1 text-[11px]',
+                  rerankRuntimeState === 'available'
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : rerankRuntimeState === 'unavailable'
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-muted-foreground'
+                )}
+              >
+                {rerankRuntimeState === 'available'
+                  ? t('retrievePanel.querySettings.rerankConfigured', {
+                    model: rerankRuntimeLabel || t('retrievePanel.querySettings.rerankConfiguredFallback')
+                  })
+                  : rerankRuntimeState === 'unavailable'
+                    ? t('retrievePanel.querySettings.rerankNotConfigured')
+                    : t('retrievePanel.querySettings.rerankStatusUnknown')}
+              </p>
 
               <div className="flex items-center gap-2">
                 <TooltipProvider>
